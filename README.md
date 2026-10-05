@@ -28,7 +28,7 @@ python scripts/fix_nyala_lion.py
 
 This downloads everything into `data/raw_subset/` (about 4.1GB, gitignored, not pushed to GitHub). Expect it to take a while and to need re-running once or twice if a connection drops partway, since the script skips anything already finished.
 
-## Preprocessing (done, Yamkela's part)
+## Preprocessing (done, Temos's part)
 
 These scripts turn the raw downloaded folders into a clean, model-ready pipeline. Run them in this order after the download finishes:
 
@@ -57,9 +57,9 @@ Important hardware note: this is being developed on a CPU only machine (no dedic
 3. **Evaluation**: in `scripts/evaluate.py`, load the test split and the saved model, report accuracy, per-class precision/recall/F1, and a confusion matrix.
 4. **Embeddings and dimensional reduction**: this is a required pipeline step in the brief. Extract the ViT's pooled embeddings for the test set and run PCA or t-SNE on them, then plot the result coloured by species. This also doubles as a results visualisation for the slides and paper.
 
-Once the model is trained, evaluated, and saved to `models/vit_species.pt`, hand the code back to Yamkela to build the inference engine and the upload UI.
+Once the model is trained, evaluated, and saved to `models/vit_species.pt`, hand the code back to Temos to build the inference engine and the upload UI.
 
-## Still to do after that (Yamkela): inference engine and UI
+## Still to do after that (Temos): inference engine and UI
 
 1. **Inference engine**: build a REST (or gRPC) server, Flask or FastAPI is simplest, that loads `models/vit_species.pt` and `data/processed/label_map.json`, accepts an uploaded image, and returns the predicted species and confidence. Put this under `src/inference_server.py` or similar, and document how to start it (e.g. `python src/inference_server.py`, what port it listens on, and the request/response format for the predict endpoint).
 2. **Upload UI**: a web or mobile app that calls the inference server and displays the predicted species and confidence.
