@@ -1,0 +1,7 @@
+pandas
+numpy
+scikit-learn
+Pillow
+wildlife-datasets
+torch
+torchvision
