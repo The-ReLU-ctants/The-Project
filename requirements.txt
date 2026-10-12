@@ -5,3 +5,6 @@ Pillow
 wildlife-datasets
 torch
 torchvision
+fastapi
+uvicorn
+python-multipart

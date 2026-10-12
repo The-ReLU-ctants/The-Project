@@ -97,7 +97,7 @@ def count_parameters(model: nn.Module) -> int:
 
 
 if __name__ == "__main__":
-    # Quick smoke test: python -m src.model  (run from the project root)
+    # Quick smoke test: python -m src.model  
     model = build_model()
     x = torch.randn(2, 3, 224, 224)
     logits = model(x)

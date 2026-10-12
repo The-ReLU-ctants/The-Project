@@ -1,0 +1,367 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Species Identifier</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%232f6f4f'/%3E%3Ccircle cx='16' cy='17' r='6' fill='white'/%3E%3C/svg%3E">
+<style>
+  :root {
+    color-scheme: light;
+    --bg: #f4f1e9;
+    --card: #fffdf8;
+    --ink: #252d25;
+    --muted: #70786d;
+    --line: #dcded2;
+    --accent: #315c43;
+    --accent-soft: #e8eee3;
+    --bad: #a74435;
+    --shadow: 0 22px 60px rgba(40, 51, 39, .09);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background:
+      radial-gradient(ellipse at 12% 8%, rgba(199, 211, 180, .34), transparent 34rem),
+      radial-gradient(ellipse at 92% 82%, rgba(225, 208, 174, .26), transparent 30rem),
+      var(--bg);
+    color: var(--ink);
+    font: 16px/1.6 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    display: flex;
+    justify-content: center;
+    padding: clamp(28px, 7vh, 72px) 18px 48px;
+  }
+
+  main {
+    width: 100%;
+    max-width: 620px;
+    position: relative;
+  }
+
+  main::before {
+    content: "FIELD NOTES  /  NATURE & TECHNOLOGY";
+    display: block;
+    margin-bottom: 18px;
+    color: var(--accent);
+    font-size: .69rem;
+    font-weight: 750;
+    letter-spacing: .18em;
+  }
+
+  h1 {
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: clamp(2.35rem, 7vw, 3.4rem);
+    font-weight: 500;
+    letter-spacing: -.055em;
+    line-height: 1.04;
+    margin: 0 0 12px;
+  }
+
+  .sub {
+    color: var(--muted);
+    font-size: 1.02rem;
+    max-width: 42ch;
+    margin: 0 0 30px;
+  }
+
+  .card {
+    background: var(--card);
+    border: 1px solid rgba(220, 222, 210, .9);
+    border-radius: 22px;
+    padding: clamp(18px, 4vw, 30px);
+    box-shadow: var(--shadow);
+  }
+
+  #drop {
+    border: 1.5px dashed #c5cebd;
+    background: #f8f8f2;
+    border-radius: 16px;
+    min-height: 250px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    text-align: center;
+    cursor: pointer;
+    padding: 22px;
+    overflow: hidden;
+    transition: border-color .2s ease, background .2s ease, transform .2s ease;
+  }
+
+  #drop:hover, #drop.over {
+    border-color: var(--accent);
+    background: var(--accent-soft);
+  }
+
+  #drop:hover { transform: translateY(-1px); }
+
+  #drop:focus-visible {
+    outline: 3px solid #91ae91;
+    outline-offset: 4px;
+  }
+
+  #drop strong {
+    max-width: 34ch;
+    font-size: 1rem;
+    font-weight: 650;
+    letter-spacing: -.01em;
+  }
+
+  #drop .hint {
+    color: var(--muted);
+    font-size: .84rem;
+  }
+
+  #preview {
+    max-width: 100%;
+    max-height: 330px;
+    border-radius: 12px;
+    display: none;
+    object-fit: contain;
+  }
+
+  button {
+    margin-top: 18px;
+    width: 100%;
+    padding: 14px 18px;
+    border: 0;
+    border-radius: 12px;
+    background: var(--accent);
+    color: #fffdf8;
+    font: inherit;
+    font-size: .97rem;
+    font-weight: 650;
+    letter-spacing: .01em;
+    cursor: pointer;
+    box-shadow: 0 7px 18px rgba(49, 92, 67, .16);
+    transition: background .18s ease, transform .18s ease, box-shadow .18s ease, opacity .18s ease;
+  }
+
+  button:hover:not(:disabled) {
+    background: #244a34;
+    transform: translateY(-1px);
+    box-shadow: 0 10px 22px rgba(49, 92, 67, .2);
+  }
+
+  button:focus-visible {
+    outline: 3px solid #91ae91;
+    outline-offset: 3px;
+  }
+
+  button:disabled {
+    opacity: .48;
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+
+  #result {
+    margin-top: 28px;
+    padding-top: 25px;
+    border-top: 1px solid var(--line);
+    display: none;
+  }
+
+  .label {
+    color: var(--muted);
+    font-size: .7rem;
+    font-weight: 750;
+    text-transform: uppercase;
+    letter-spacing: .14em;
+  }
+
+  #species {
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: clamp(1.9rem, 5vw, 2.4rem);
+    font-weight: 500;
+    line-height: 1.15;
+    letter-spacing: -.035em;
+    margin: 7px 0 5px;
+    text-transform: capitalize;
+  }
+
+  #conf {
+    color: var(--accent);
+    font-size: .91rem;
+    font-weight: 600;
+    margin-bottom: 24px;
+  }
+
+  .row {
+    display: grid;
+    grid-template-columns: minmax(90px, 125px) 1fr 48px;
+    align-items: center;
+    gap: 12px;
+    margin: 13px 0;
+    font-size: .88rem;
+  }
+
+  .row .name {
+    text-transform: capitalize;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .bar {
+    height: 8px;
+    background: #e9ece4;
+    border-radius: 99px;
+    overflow: hidden;
+  }
+
+  .bar > span {
+    display: block;
+    height: 100%;
+    background: #719374;
+    border-radius: 99px;
+    transition: width .45s ease;
+  }
+
+  .row.top .name, .row.top .pct {
+    font-weight: 750;
+    color: var(--accent);
+  }
+
+  .row.top .bar > span { background: var(--accent); }
+
+  .pct {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    color: var(--muted);
+  }
+
+  #error {
+    display: none;
+    margin-top: 16px;
+    padding: 12px 14px;
+    border: 1px solid rgba(167, 68, 53, .22);
+    border-radius: 10px;
+    background: #fff2ee;
+    color: var(--bad);
+    font-size: .9rem;
+  }
+
+  #status {
+    color: var(--muted);
+    font-size: .78rem;
+    margin-top: 20px;
+    text-align: center;
+    letter-spacing: .015em;
+  }
+
+  @media (max-width: 420px) {
+    body { padding: 30px 14px; }
+    .card { border-radius: 18px; }
+    #drop { min-height: 220px; padding: 18px; }
+    .row { grid-template-columns: minmax(76px, 100px) 1fr 44px; gap: 8px; font-size: .82rem; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      transition-duration: .01ms !important;
+      animation-duration: .01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+</style>
+</head>
+<body>
+<main>
+  <h1>Species Identifier</h1>
+  <p class="sub">Upload a photo of an animal and the model will name the species.</p>
+
+  <div class="card">
+    <div id="drop" tabindex="0" role="button" aria-label="Choose an image to upload">
+      <img id="preview" alt="Selected image preview">
+      <strong id="dropTitle">Drop an image here, or click to choose</strong>
+      <span class="hint" id="dropHint">JPEG, PNG, WebP or BMP, up to 10 MB</span>
+    </div>
+    <input id="file" type="file" accept="image/*" hidden>
+    <button id="go" disabled>Identify species</button>
+
+    <div id="error" role="alert"></div>
+
+    <div id="result" aria-live="polite">
+      <div class="label">Predicted species</div>
+      <div id="species"></div>
+      <div id="conf"></div>
+      <div class="label" style="margin-bottom:6px">All species</div>
+      <div id="bars"></div>
+    </div>
+  </div>
+  <div id="status"></div>
+</main>
+
+<script>
+  // Same origin when served by the inference server; fall back to localhost if the file is opened directly.
+  const API = location.protocol === "file:" ? "http://127.0.0.1:8000" : "";
+  const $ = (id) => document.getElementById(id);
+  const drop = $("drop"), input = $("file"), go = $("go"), preview = $("preview");
+  let chosen = null;
+
+  const pretty = (s) => s.replace(/_/g, " ");
+
+  function showError(msg) { $("error").textContent = msg; $("error").style.display = msg ? "block" : "none"; }
+
+  function pick(file) {
+    showError(""); $("result").style.display = "none";
+    if (!file) return;
+    if (!file.type.startsWith("image/")) { showError("Please choose an image file."); return; }
+    chosen = file;
+    preview.src = URL.createObjectURL(file);
+    preview.style.display = "block";
+    $("dropTitle").textContent = file.name;
+    $("dropHint").textContent = "Click or drop to choose a different image";
+    go.disabled = false;
+  }
+
+  drop.addEventListener("click", () => input.click());
+  drop.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); input.click(); } });
+  input.addEventListener("change", () => pick(input.files[0]));
+  ["dragenter", "dragover"].forEach((t) => drop.addEventListener(t, (e) => { e.preventDefault(); drop.classList.add("over"); }));
+  ["dragleave", "drop"].forEach((t) => drop.addEventListener(t, (e) => { e.preventDefault(); drop.classList.remove("over"); }));
+  drop.addEventListener("drop", (e) => pick(e.dataTransfer.files[0]));
+
+  go.addEventListener("click", async () => {
+    if (!chosen) return;
+    go.disabled = true; go.textContent = "Identifying…"; showError("");
+    try {
+      const body = new FormData(); body.append("file", chosen);
+      const res = await fetch(API + "/predict", { method: "POST", body });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "Prediction failed");
+      render(data);
+    } catch (err) {
+      showError(err.message === "Failed to fetch" ? "Could not reach the inference server. Is it running?" : err.message);
+      $("result").style.display = "none";
+    } finally {
+      go.disabled = false; go.textContent = "Identify species";
+    }
+  });
+
+  function render(d) {
+    $("species").textContent = pretty(d.species);
+    $("conf").textContent = (d.confidence * 100).toFixed(1) + "% confidence";
+    $("bars").innerHTML = "";
+    Object.entries(d.probabilities).forEach(([name, p], i) => {
+      const row = document.createElement("div");
+      row.className = "row" + (i === 0 ? " top" : "");
+      row.innerHTML = '<span class="name"></span><div class="bar"><span></span></div><span class="pct"></span>';
+      row.querySelector(".name").textContent = pretty(name);
+      row.querySelector(".bar > span").style.width = (p * 100).toFixed(1) + "%";
+      row.querySelector(".pct").textContent = (p * 100).toFixed(1) + "%";
+      $("bars").appendChild(row);
+    });
+    $("result").style.display = "block";
+  }
+
+  fetch(API + "/health").then((r) => r.json())
+    .then((h) => { $("status").textContent = "Server online · " + h.classes.length + " species · running on " + h.device; })
+    .catch(() => { $("status").textContent = "Server not reachable"; });
+</script>
+</body>
+</html>
