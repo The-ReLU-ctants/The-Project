@@ -54,7 +54,8 @@ class WildlifeDataset(Dataset):
 
     def __getitem__(self, idx: int):
         row = self.df.iloc[idx]
-        image = Image.open(row["path"]).convert("RGB")
+        ## image = Image.open(row["path"]).convert("RGB") [windows path]
+        image = Image.open(row["path"].replace("\\", "/")).convert("RGB") ## [macOS path]
         image = self.transform(image)
         label = self.label_map[row["species"]]
         return image, label
