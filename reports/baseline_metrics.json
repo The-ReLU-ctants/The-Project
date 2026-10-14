@@ -1,0 +1,52 @@
+{
+  "model": "LogisticRegression (flattened 32x32 RGB pixels)",
+  "image_size": 32,
+  "num_train_images": 6997,
+  "num_test_images": 1436,
+  "majority_class_accuracy": 0.25835654596100277,
+  "accuracy": 0.7987465181058496,
+  "macro_avg": {
+    "precision": 0.8044600616022566,
+    "recall": 0.7980264724208765,
+    "f1-score": 0.7918557730834498,
+    "support": 1436.0
+  },
+  "weighted_avg": {
+    "precision": 0.8188519767451423,
+    "recall": 0.7987465181058496,
+    "f1-score": 0.7964088648161124,
+    "support": 1436.0
+  },
+  "per_class": {
+    "dog": {
+      "precision": 0.6918238993710691,
+      "recall": 0.889487870619946,
+      "f1-score": 0.7783018867924528,
+      "support": 371.0
+    },
+    "lion": {
+      "precision": 0.7024793388429752,
+      "recall": 0.7203389830508474,
+      "f1-score": 0.7112970711297071,
+      "support": 118.0
+    },
+    "nyala": {
+      "precision": 0.8410852713178295,
+      "recall": 0.889344262295082,
+      "f1-score": 0.8645418326693227,
+      "support": 244.0
+    },
+    "polar_bear": {
+      "precision": 0.9367588932806324,
+      "recall": 0.6139896373056994,
+      "f1-score": 0.7417840375586855,
+      "support": 386.0
+    },
+    "sea_star": {
+      "precision": 0.8501529051987767,
+      "recall": 0.8769716088328076,
+      "f1-score": 0.8633540372670807,
+      "support": 317.0
+    }
+  }
+}

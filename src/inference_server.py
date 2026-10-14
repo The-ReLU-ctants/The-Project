@@ -10,12 +10,16 @@ Then open http://127.0.0.1:8000 for the upload page, or call the API directly.
 
 Endpoints
 ---------
-GET  /health    -> {"status": "ok", "classes": [...], "device": "...", "checkpoint_epoch": N}
+GET  /health    -> {"status": "ok", "classes": [...], "device": "...", "checkpoint_epoch": N,
+                     "baseline_loaded": true}
 POST /predict   multipart/form-data with one file field named "file" (JPEG/PNG/WebP/BMP, max 10 MB)
                 -> {
-                     "species": "polar_bear",
-                     "confidence": 0.9731,                # probability of the predicted species, 0-1
-                     "probabilities": {"polar_bear": 0.9731, "...": 0.0123, ...}   # sorted, highest first
+                     "vit": {
+                       "species": "polar_bear",
+                       "confidence": 0.9731,              # probability of the predicted species, 0-1
+                       "probabilities": {"polar_bear": 0.9731, "...": 0.0123, ...}  # sorted, highest first
+                     },
+                     "baseline": { ...same shape as "vit"... } | null   # null if no baseline model is trained yet
                    }
 Errors are JSON: {"detail": "..."} with status 400 (not an image / empty file),
 413 (file too large) or 503 (model not loaded).
@@ -27,7 +31,9 @@ Example
 
 Model and label-map paths can be overridden with the SPECIES_CHECKPOINT and
 SPECIES_LABEL_MAP environment variables (defaults: models/vit_species.pt and
-data/processed/label_map.json).
+data/processed/label_map.json). The baseline model path can be overridden
+with SPECIES_BASELINE (default: models/baseline_logreg.joblib) — if that
+file doesn't exist, "baseline" in the response is just null, nothing breaks.
 """
 
 import argparse
@@ -38,6 +44,8 @@ import sys
 from contextlib import asynccontextmanager
 from pathlib import Path
 
+import joblib
+import numpy as np
 import torch
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
@@ -52,13 +60,14 @@ from src.model import build_model  # noqa: E402
 
 CHECKPOINT_PATH = os.environ.get("SPECIES_CHECKPOINT", str(ROOT / "models" / "vit_species.pt"))
 LABEL_MAP_PATH = os.environ.get("SPECIES_LABEL_MAP", str(ROOT / "data" / "processed" / "label_map.json"))
+BASELINE_PATH = os.environ.get("SPECIES_BASELINE", str(ROOT / "models" / "baseline_logreg.joblib"))
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 MAX_UPLOAD_BYTES = 10 * 1024 * 1024
 
 log = logging.getLogger("inference")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 
-state = {}  # filled in at startup: model, transform, idx_to_species, device, epoch
+state = {}  # filled in at startup: model, transform, idx_to_species, device, epoch, baseline
 
 
 def get_device() -> torch.device:
@@ -94,6 +103,37 @@ def load_everything():
     log.info("Model loaded from %s (epoch %s) on %s; classes: %s",
              CHECKPOINT_PATH, ckpt.get("epoch"), device, list(label_map))
 
+    # Baseline is optional — the ViT is the real model, the baseline is just a
+    # reference point, so a missing/untrained baseline shouldn't block startup.
+    if os.path.exists(BASELINE_PATH):
+        baseline = joblib.load(BASELINE_PATH)
+        state["baseline"] = baseline
+        state["baseline_idx_to_species"] = {v: k for k, v in baseline["label_map"].items()}
+        log.info("Baseline model loaded from %s (test accuracy %.4f)",
+                 BASELINE_PATH, baseline["test_accuracy"])
+    else:
+        log.warning("No baseline model found at %s; /predict will return baseline: null. "
+                    "Run scripts/baseline.py to train one.", BASELINE_PATH)
+
+
+def predict_baseline(image: Image.Image):
+    """Flatten-pixel Logistic Regression baseline — same preprocessing as scripts/baseline.py."""
+    baseline = state["baseline"]
+    image_size = baseline["image_size"]
+    x = (np.asarray(image.resize((image_size, image_size)), dtype=np.float32) / 255.0).ravel()
+    probs = baseline["model"].predict_proba(x.reshape(1, -1))[0]
+    idx_to_species = state["baseline_idx_to_species"]
+    ranked = sorted(
+        ((idx_to_species[i], float(p)) for i, p in enumerate(probs)),
+        key=lambda t: t[1],
+        reverse=True,
+    )
+    return {
+        "species": ranked[0][0],
+        "confidence": round(ranked[0][1], 4),
+        "probabilities": {name: round(p, 4) for name, p in ranked},
+    }
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -119,6 +159,7 @@ def health():
         "classes": [state["idx_to_species"][i] for i in range(len(state["idx_to_species"]))],
         "device": str(state["device"]),
         "checkpoint_epoch": state["epoch"],
+        "baseline_loaded": "baseline" in state,
     }
 
 
@@ -146,11 +187,15 @@ def predict(file: UploadFile = File(...)):
         key=lambda t: t[1],
         reverse=True,
     )
-    return {
+    vit_result = {
         "species": ranked[0][0],
         "confidence": round(ranked[0][1], 4),
         "probabilities": {name: round(p, 4) for name, p in ranked},
     }
+
+    baseline_result = predict_baseline(image) if "baseline" in state else None
+
+    return {"vit": vit_result, "baseline": baseline_result}
 
 
 if __name__ == "__main__":

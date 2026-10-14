@@ -173,7 +173,19 @@
     letter-spacing: .14em;
   }
 
-  #species {
+  .modelBlock {
+    margin-bottom: 26px;
+    padding-bottom: 22px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .modelBlock:last-child {
+    margin-bottom: 0;
+    padding-bottom: 0;
+    border-bottom: 0;
+  }
+
+  .species {
     font-family: Georgia, "Times New Roman", serif;
     font-size: clamp(1.9rem, 5vw, 2.4rem);
     font-weight: 500;
@@ -183,11 +195,17 @@
     text-transform: capitalize;
   }
 
-  #conf {
+  .conf {
     color: var(--accent);
     font-size: .91rem;
     font-weight: 600;
     margin-bottom: 24px;
+  }
+
+  .unavailable {
+    color: var(--muted);
+    font-size: .9rem;
+    font-style: italic;
   }
 
   .row {
@@ -286,11 +304,21 @@
     <div id="error" role="alert"></div>
 
     <div id="result" aria-live="polite">
-      <div class="label">Predicted species</div>
-      <div id="species"></div>
-      <div id="conf"></div>
-      <div class="label" style="margin-bottom:6px">All species</div>
-      <div id="bars"></div>
+      <div class="modelBlock" id="vitBlock">
+        <div class="label" id="vitLabel">ViT model</div>
+        <div class="species" id="vitSpecies"></div>
+        <div class="conf" id="vitConf"></div>
+        <div class="label" style="margin-bottom:6px">All species</div>
+        <div class="bars" id="vitBars"></div>
+      </div>
+
+      <div class="modelBlock" id="baselineBlock">
+        <div class="label" id="baselineLabel">Baseline (Logistic Regression)</div>
+        <div class="species" id="baselineSpecies"></div>
+        <div class="conf" id="baselineConf"></div>
+        <div class="label" style="margin-bottom:6px">All species</div>
+        <div class="bars" id="baselineBars"></div>
+      </div>
     </div>
   </div>
   <div id="status"></div>
@@ -334,7 +362,9 @@
       const res = await fetch(API + "/predict", { method: "POST", body });
       const data = await res.json();
       if (!res.ok) throw new Error(data.detail || "Prediction failed");
-      render(data);
+      renderModel("vit", data.vit);
+      renderModel("baseline", data.baseline);
+      $("result").style.display = "block";
     } catch (err) {
       showError(err.message === "Failed to fetch" ? "Could not reach the inference server. Is it running?" : err.message);
       $("result").style.display = "none";
@@ -343,10 +373,17 @@
     }
   });
 
-  function render(d) {
-    $("species").textContent = pretty(d.species);
-    $("conf").textContent = (d.confidence * 100).toFixed(1) + "% confidence";
-    $("bars").innerHTML = "";
+  function renderModel(prefix, d) {
+    const speciesEl = $(prefix + "Species"), confEl = $(prefix + "Conf"), barsEl = $(prefix + "Bars");
+    if (!d) {
+      speciesEl.textContent = "";
+      confEl.innerHTML = '<span class="unavailable">Not trained yet — run scripts/baseline.py</span>';
+      barsEl.innerHTML = "";
+      return;
+    }
+    speciesEl.textContent = pretty(d.species);
+    confEl.textContent = (d.confidence * 100).toFixed(1) + "% confidence";
+    barsEl.innerHTML = "";
     Object.entries(d.probabilities).forEach(([name, p], i) => {
       const row = document.createElement("div");
       row.className = "row" + (i === 0 ? " top" : "");
@@ -354,13 +391,15 @@
       row.querySelector(".name").textContent = pretty(name);
       row.querySelector(".bar > span").style.width = (p * 100).toFixed(1) + "%";
       row.querySelector(".pct").textContent = (p * 100).toFixed(1) + "%";
-      $("bars").appendChild(row);
+      barsEl.appendChild(row);
     });
-    $("result").style.display = "block";
   }
 
   fetch(API + "/health").then((r) => r.json())
-    .then((h) => { $("status").textContent = "Server online · " + h.classes.length + " species · running on " + h.device; })
+    .then((h) => {
+      const baseline = h.baseline_loaded ? "ViT + baseline" : "ViT only (baseline not trained)";
+      $("status").textContent = "Server online · " + h.classes.length + " species · " + baseline + " · running on " + h.device;
+    })
     .catch(() => { $("status").textContent = "Server not reachable"; });
 </script>
 </body>
