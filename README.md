@@ -23,39 +23,31 @@ Dataset source: https://www.kaggle.com/datasets/wildlifedatasets/wildlifereid-10
 
 ## Downloading the dataset
 
-The full WildlifeReID-10k dataset is about 26GB, so instead we pull 5 species individually from their original smaller sources (about 4.1GB total). No Kaggle account is needed for this subset.
+The full WildlifeReID-10k dataset (140,489 images, 22 species) is downloaded from Kaggle:
 
 ```
-python scripts/download_subset.py
+python scripts/download_full_dataset.py
 ```
 
-If it stops partway on the nyala or lion step with a `TypeError` about writing `None` to a license file, that is a known bug in the `wildlife-datasets` library, not a real failure. Run this once to finish those two:
-
-```
-python scripts/fix_nyala_lion.py
-```
-
-This downloads everything into `data/raw_subset/` (about 4.1GB, gitignored, not pushed to GitHub). Expect it to take a while and to need re-running once or twice if a connection drops partway, since the script skips anything already finished.
+This expects a Kaggle account/API key and downloads the metadata CSV plus images into `data/raw/` (gitignored, not pushed to GitHub).
 
 ## Preprocessing (done, Temos's part)
 
-These scripts turn the raw downloaded folders into a clean, model-ready pipeline. Run them in this order after the download finishes:
+This is the big-data step: a PySpark job processes the full metadata in parallel, caps every species at 2,500 images (spread across individuals first, not just the first ones found), and produces a 70/15/15 train/val/test split grouped by identity, so the same animal never appears in more than one split.
 
 ```
-python scripts/build_manifest.py
-python scripts/make_splits.py
+python scripts/spark_prepare_full_dataset.py
 python scripts/build_label_map.py
 ```
 
 What each one does:
 
-1. `build_manifest.py`: walks `data/raw_subset/<species>/...` and builds `data/processed/manifest.csv` with one row per image (path, species, identity). Each of the 5 sources has a different folder layout, so this normalises them into one flat table.
-2. `make_splits.py`: polar bear has 138,363 images in the raw data because it is extracted video frames, versus 740 to 8,363 for the other species, so this caps every class at 2,500 images (spread across individuals first, not just the first ones found) and produces a 70/15/15 train/val/test split, grouped by identity, so the same animal never appears in more than one split. Outputs `data/processed/{train,val,test}.csv`.
-3. `build_label_map.py`: freezes the species to integer label mapping to `data/processed/label_map.json`, so training, evaluation, and the inference server all agree on the same indices.
+1. `spark_prepare_full_dataset.py`: reads the full metadata with Spark, caps each species at 2,500 images using a window function over identities, buckets each identity into train/val/test with a deterministic hash (so no individual crosses splits), and writes `data/processed/{train,val,test}.csv`.
+2. `build_label_map.py`: freezes the species to integer label mapping to `data/processed/label_map.json`, so training, evaluation, and the inference server all agree on the same indices. Rerun this any time `train.csv` is regenerated.
 
 `src/dataset.py` is the transform and `Dataset` pipeline on top of those CSVs: `WildlifeDataset` loads an image, resizes it to 224x224, normalises it, and applies augmentation for the training split. `load_label_map()` reads the frozen label mapping. Import these two directly, there is no need to touch the CSVs by hand.
 
-Result sizes after capping: train 6,997 images, val 1,436, test 1,436, roughly balanced across the 5 classes (polar bear has only 13 distinct individuals in the source data, worth a mention in the dataset properties writeup).
+Result sizes after capping: 45,353 images total, split into 33,241 train / 6,848 val / 5,264 test across 22 species.
 
 ## What Sihle needs to do: model, training, evaluation, embeddings
 

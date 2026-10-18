@@ -1,6 +1,6 @@
-"""Image transform + Dataset pipeline: turns the manifest CSVs produced by
-scripts/build_manifest.py and scripts/make_splits.py into tensor-ready
-(image, label) pairs for a DataLoader. Does not define or train any model.
+"""Image transform + Dataset pipeline: turns the train/val/test CSVs produced by
+scripts/spark_prepare_full_dataset.py into tensor-ready (image, label) pairs
+for a DataLoader. Does not define or train any model.
 """
 import json
 

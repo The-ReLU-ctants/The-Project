@@ -1,14 +1,4 @@
-"""Big-data-style data prep for the FULL WildlifeReID-10k dataset (all 22
-species, 140,489 images), replacing the pandas+sklearn logic in
-build_manifest.py/make_splits.py with PySpark DataFrame operations that run
-in parallel across local cores (local[*]).
-
-This is a drop-in replacement for the data-prep stage only. It writes
-train.csv / val.csv / test.csv in the exact same (path, species, identity)
-schema the existing model/training/inference code already expects, so
-src/dataset.py, src/model.py, scripts/train.py, scripts/evaluate.py, and
-src/inference_server.py require zero changes.
-
+"""
 Usage:
     python scripts/spark_prepare_full_dataset.py
 """
