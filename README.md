@@ -1,6 +1,5 @@
 ---
 title: Wildlife Species Classifier
-emoji: 🦓
 colorFrom: green
 colorTo: blue
 sdk: docker

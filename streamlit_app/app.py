@@ -75,8 +75,8 @@ def predict_baseline(baseline, image):
     )
 
 
-st.set_page_config(page_title="Wildlife Species Classifier", page_icon="\U0001F993")
-st.title("\U0001F993 Wildlife Species Classifier")
+st.set_page_config(page_title="Wildlife Species Classifier")
+st.title("Wildlife Species Classifier")
 st.caption("The ReLU-ctants, Vision Transformer trained from scratch on WildlifeReID-10k (22 species)")
 
 state = load_everything()
