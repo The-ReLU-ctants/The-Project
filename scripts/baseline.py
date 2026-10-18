@@ -1,55 +1,35 @@
-"""Non-deep-learning baseline for the species classifier: a majority-class
-floor plus a Logistic Regression on small flattened pixel features, trained
-and evaluated on the same 5-species splits as the ViT so the numbers are
-directly comparable in the "Results" section.
-
-Run from anywhere:  python scripts/baseline.py
-
-Reports overall accuracy, per-class precision / recall / F1, and a confusion
-matrix for the Logistic Regression baseline (plus the majority-class floor
-accuracy), printed and written to reports/ (prefixed baseline_ so nothing
-here overwrites evaluate.py's ViT outputs):
-
-    reports/baseline_metrics.json
-    reports/baseline_classification_report.csv
-    reports/baseline_confusion_matrix.csv
-    reports/baseline_confusion_matrix.png
-"""
-
-import argparse
+import argparse #allows me to run the script with flags
 import json
 import os
-import sys
+import sys #python runtime interaction
 from pathlib import Path
 
-import joblib
+import joblib #save and load Python objects to the disk
 import matplotlib
 
-matplotlib.use("Agg")  # no display needed
-import matplotlib.pyplot as plt  # noqa: E402
-import numpy as np  # noqa: E402
-import pandas as pd  # noqa: E402
-from PIL import Image  # noqa: E402
-from sklearn.dummy import DummyClassifier  # noqa: E402
-from sklearn.linear_model import LogisticRegression  # noqa: E402
-from sklearn.metrics import accuracy_score, classification_report, confusion_matrix  # noqa: E402
 
-ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT))
-os.chdir(ROOT)  # manifest CSVs store image paths relative to the project root
+import matplotlib.pyplot as plt #used to draw the confusion matrix
+import numpy as np
+import pandas as pd
+from PIL import Image #opens up image files
+from sklearn.dummy import DummyClassifier #simplest classifier, ignores the input image entirely
+from sklearn.linear_model import LogisticRegression #the baseline model
+from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
 
-from src.dataset import load_label_map  # noqa: E402
+ROOT = Path(__file__).resolve().parent.parent #Root is always set to the-project
+sys.path.insert(0, str(ROOT)) #
+os.chdir(ROOT) #the working path is the root
 
-# Tiny and flattened on purpose: this baseline exists to give the ViT a
-# floor to beat, not to be competitive on its own.
+from src.dataset import load_label_map #laod the labels
+
 IMAGE_SIZE = 32
 
 
-def load_features(csv_path: str, label_map: dict):
-    df = pd.read_csv(csv_path)
-    X = np.zeros((len(df), IMAGE_SIZE * IMAGE_SIZE * 3), dtype=np.float32)
-    y = np.zeros(len(df), dtype=np.int64)
-    for i, row in enumerate(df.itertuples(index=False)):
+def load_features(csv_path: str, label_map: dict): #return the data all ready for sci-kit learn
+    df = pd.read_csv(csv_path) 
+    X = np.zeros((len(df), IMAGE_SIZE * IMAGE_SIZE * 3), dtype=np.float32) #pre-allocates feature matrix upfront for better training/testing
+    y = np.zeros(len(df), dtype=np.int64) #pre-allocates label matrix 
+    for i, row in enumerate(df.itertuples(index=False)): #
         image = Image.open(row.path.replace("\\", "/")).convert("RGB").resize((IMAGE_SIZE, IMAGE_SIZE))
         X[i] = (np.asarray(image, dtype=np.float32) / 255.0).ravel()
         y[i] = label_map[row.species]
@@ -95,7 +75,7 @@ def plot_confusion_matrix(cm: np.ndarray, class_names: list, out_path: Path, tit
 
 
 def parse_args():
-    p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    p = argparse.ArgumentParser()
     p.add_argument("--train-csv", default="data/processed/train.csv")
     p.add_argument("--test-csv", default="data/processed/test.csv")
     p.add_argument("--label-map", default="data/processed/label_map.json")
@@ -120,13 +100,11 @@ def main():
     X_test, y_test = load_features(args.test_csv, label_map)
     print(f"Train: {len(X_train)} images, Test: {len(X_test)} images\n")
 
-    # ---- Floor: majority-class baseline ------------------------------------
     dummy = DummyClassifier(strategy="most_frequent")
     dummy.fit(X_train, y_train)
     acc_dummy = accuracy_score(y_test, dummy.predict(X_test))
     print(f"Majority-class floor accuracy: {acc_dummy:.4f}\n")
 
-    # ---- Real baseline: Logistic Regression on raw flattened pixels -------
     print("Training Logistic Regression baseline...")
     clf = LogisticRegression(max_iter=1000)
     clf.fit(X_train, y_train)
@@ -143,7 +121,6 @@ def main():
     print("Confusion matrix (rows = true, columns = predicted):")
     print(pd.DataFrame(cm, index=class_names, columns=class_names).to_string())
 
-    # ---- Save outputs -------------------------------------------------------
     pd.DataFrame(report).T.rename_axis("class").to_csv(out_dir / "baseline_classification_report.csv")
     pd.DataFrame(cm, index=class_names, columns=class_names).to_csv(out_dir / "baseline_confusion_matrix.csv")
 
@@ -168,8 +145,6 @@ def main():
                           f"Baseline confusion matrix (accuracy {acc:.1%})")
     print(f"\nSaved results to {out_dir}/")
 
-    # ---- Save the fitted model so the inference server can load it without
-    # retraining on every request --------------------------------------------
     model_out = Path(args.model_out)
     model_out.parent.mkdir(parents=True, exist_ok=True)
     joblib.dump(

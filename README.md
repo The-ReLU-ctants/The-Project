@@ -1,6 +1,16 @@
+---
+title: Wildlife Species Classifier
+emoji: 🦓
+colorFrom: green
+colorTo: blue
+sdk: docker
+app_port: 7860
+pinned: false
+---
+
 # Big Data Project: Wildlife Species Classification (WildlifeReID-10k)
 
-This project builds a Vision Transformer (ViT) that classifies an animal photo into one of 5 species (dog, polar bear, sea star, nyala, lion), serves it through an inference API, and wraps it in an upload app, per the Big Data Analytics project brief.
+This project builds a Vision Transformer (ViT) that classifies an animal photo into one of the species in the full WildlifeReID-10k dataset (22 species), serves it through an inference API, and wraps it in an upload app, per the Big Data Analytics project brief.
 
 Dataset source: https://www.kaggle.com/datasets/wildlifedatasets/wildlifereid-10k
 
