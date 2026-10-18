@@ -77,10 +77,10 @@ def predict_baseline(baseline, image):
 
 st.set_page_config(page_title="Wildlife Species Classifier", page_icon="\U0001F993")
 st.title("\U0001F993 Wildlife Species Classifier")
-st.caption("The ReLU-ctants — Vision Transformer trained from scratch on WildlifeReID-10k (22 species)")
+st.caption("The ReLU-ctants, Vision Transformer trained from scratch on WildlifeReID-10k (22 species)")
 
 state = load_everything()
-st.success(f"Model loaded (epoch {state['epoch']}) — {len(state['idx_to_species'])} species")
+st.success(f"Model loaded (epoch {state['epoch']}), {len(state['idx_to_species'])} species")
 
 uploaded = st.file_uploader("Upload a photo of an animal", type=["jpg", "jpeg", "png", "webp", "bmp"])
 
