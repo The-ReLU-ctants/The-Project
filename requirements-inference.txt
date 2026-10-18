@@ -6,4 +6,5 @@ python-multipart
 Pillow
 pandas
 numpy
+scikit-learn
 joblib
