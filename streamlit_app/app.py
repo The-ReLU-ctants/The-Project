@@ -26,7 +26,7 @@ LABEL_MAP_PATH = ROOT / "data" / "processed" / "label_map.json"
 BASELINE_PATH = ROOT / "models" / "baseline_logreg.joblib"
 
 
-@st.cache_resource
+@st.cache_resource  # loads once per server process, not once per page view/upload
 def load_everything():
     device = torch.device("cpu")
     ckpt = torch.load(CHECKPOINT_PATH, map_location=device, weights_only=True)

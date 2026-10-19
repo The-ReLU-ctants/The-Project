@@ -137,6 +137,8 @@ def predict_baseline(image: Image.Image):
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # FastAPI's startup hook: runs load_everything() once when the server
+    # starts, not on every request, so the model stays in memory between calls.
     load_everything()
     yield
 
@@ -168,6 +170,8 @@ def predict(file: UploadFile = File(...)):
     if "model" not in state:
         raise HTTPException(503, "Model not loaded")
 
+    # Read one byte past the limit: if that byte exists, the file is too big,
+    # without having to read a potentially huge file fully into memory first.
     data = file.file.read(MAX_UPLOAD_BYTES + 1)
     if len(data) > MAX_UPLOAD_BYTES:
         raise HTTPException(413, f"File too large (max {MAX_UPLOAD_BYTES // (1024 * 1024)} MB)")

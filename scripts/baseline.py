@@ -1,36 +1,40 @@
-import argparse #allows me to run the script with flags
+import argparse
 import json
 import os
-import sys #python runtime interaction
+import sys
 from pathlib import Path
 
-import joblib #save and load Python objects to the disk
+import joblib
 import matplotlib
 
 
-import matplotlib.pyplot as plt #used to draw the confusion matrix
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from PIL import Image #opens up image files
-from sklearn.dummy import DummyClassifier #simplest classifier, ignores the input image entirely
-from sklearn.linear_model import LogisticRegression #the baseline model
+from PIL import Image
+from sklearn.dummy import DummyClassifier
+from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
 
-ROOT = Path(__file__).resolve().parent.parent #Root is always set to the-project
-sys.path.insert(0, str(ROOT)) #
-os.chdir(ROOT) #the working path is the root
+ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT))
+os.chdir(ROOT)
 
-from src.dataset import load_label_map #laod the labels
+from src.dataset import load_label_map
 
+# Deliberately tiny and flattened (no CNN/ViT-style structure) so this
+# baseline has zero learned feature extraction to compare the ViT against.
 IMAGE_SIZE = 32
 
 
-def load_features(csv_path: str, label_map: dict): #return the data all ready for sci-kit learn
-    df = pd.read_csv(csv_path) 
-    X = np.zeros((len(df), IMAGE_SIZE * IMAGE_SIZE * 3), dtype=np.float32) #pre-allocates feature matrix upfront for better training/testing
-    y = np.zeros(len(df), dtype=np.int64) #pre-allocates label matrix 
-    for i, row in enumerate(df.itertuples(index=False)): #
+def load_features(csv_path: str, label_map: dict):
+    df = pd.read_csv(csv_path)
+    X = np.zeros((len(df), IMAGE_SIZE * IMAGE_SIZE * 3), dtype=np.float32)
+    y = np.zeros(len(df), dtype=np.int64)
+    for i, row in enumerate(df.itertuples(index=False)):
         image = Image.open(row.path.replace("\\", "/")).convert("RGB").resize((IMAGE_SIZE, IMAGE_SIZE))
+        # .ravel() flattens the 32x32x3 image into a single 3072-length vector,
+        # the raw-pixel "features" Logistic Regression trains on directly.
         X[i] = (np.asarray(image, dtype=np.float32) / 255.0).ravel()
         y[i] = label_map[row.species]
     return X, y
@@ -38,6 +42,9 @@ def load_features(csv_path: str, label_map: dict): #return the data all ready fo
 
 def plot_confusion_matrix(cm: np.ndarray, class_names: list, out_path: Path, title: str):
     row_sums = cm.sum(axis=1, keepdims=True)
+    # Normalize each row to a share of that true class's images, so the
+    # heatmap colour isn't dominated by classes with more test images;
+    # `where=row_sums > 0` avoids a divide-by-zero for any empty class.
     share = np.divide(cm, row_sums, out=np.zeros(cm.shape, dtype=float), where=row_sums > 0)
 
     n = len(class_names)
@@ -100,6 +107,8 @@ def main():
     X_test, y_test = load_features(args.test_csv, label_map)
     print(f"Train: {len(X_train)} images, Test: {len(X_test)} images\n")
 
+    # Always predicts the single most common species, a sanity-check floor:
+    # the real baseline below should clearly beat this or something's wrong.
     dummy = DummyClassifier(strategy="most_frequent")
     dummy.fit(X_train, y_train)
     acc_dummy = accuracy_score(y_test, dummy.predict(X_test))
@@ -147,6 +156,8 @@ def main():
 
     model_out = Path(args.model_out)
     model_out.parent.mkdir(parents=True, exist_ok=True)
+    # Bundle image_size/label_map/test_accuracy alongside the fitted model so
+    # the inference server can use this file without any separate config.
     joblib.dump(
         {
             "model": clf,

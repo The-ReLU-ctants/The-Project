@@ -9,6 +9,8 @@ from PIL import Image
 from torch.utils.data import Dataset
 from torchvision import transforms
 
+# Standard ImageNet per-channel stats, reused just as a sane normalization
+# range; the model has no pretrained connection to ImageNet.
 IMAGENET_MEAN = [0.485, 0.456, 0.406]
 IMAGENET_STD = [0.229, 0.224, 0.225]
 
@@ -54,8 +56,9 @@ class WildlifeDataset(Dataset):
 
     def __getitem__(self, idx: int):
         row = self.df.iloc[idx]
-        ## image = Image.open(row["path"]).convert("RGB") [windows path]
-        image = Image.open(row["path"].replace("\\", "/")).convert("RGB") ## [macOS path]
+        # Some manifest paths were written with Windows backslashes, which break
+        # on macOS/Linux (e.g. Colab); forward slashes work on both.
+        image = Image.open(row["path"].replace("\\", "/")).convert("RGB")
         image = self.transform(image)
         label = self.label_map[row["species"]]
         return image, label

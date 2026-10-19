@@ -1,4 +1,6 @@
-"""Vision Transformer for 5-class species classification.
+"""Vision Transformer for species classification (num_classes is passed in by
+the caller, e.g. 22 for the full dataset; NUM_CLASSES below is just a fallback
+default used by the __main__ smoke test).
 
 The model exposes:
     forward(x)          -> class logits, shape (B, num_classes)
@@ -23,6 +25,8 @@ class ClassificationHead(nn.Module):
         self.dropout = nn.Dropout(dropout)
         self.fc = nn.Linear(embed_dim, num_classes)
 
+        # Matches the original ViT paper's head init convention: small
+        # truncated-normal weights, zero bias, rather than PyTorch's default.
         nn.init.trunc_normal_(self.fc.weight, std=0.02)
         nn.init.zeros_(self.fc.bias)
 
@@ -63,6 +67,9 @@ class SpeciesViT(nn.Module):
         )
 
         # Random-weight backbone (torchvision initialises randomly by default).
+        # image_size/patch_size fix the patch grid (224/16 = 14x14 = 196
+        # patches); hidden_dim is the embedding each patch is linearly
+        # projected into; mlp_dim is the transformer MLP's expanded width.
         self.backbone = VisionTransformer(
             image_size=image_size,
             patch_size=patch_size,

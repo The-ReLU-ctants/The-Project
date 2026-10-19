@@ -15,5 +15,5 @@ DEST = "data/raw"
 if __name__ == "__main__":
     subprocess.run(
         ["kaggle", "datasets", "download", "-d", DATASET, "-p", DEST, "--unzip"],
-        check=True,
+        check=True,  # raise if the Kaggle CLI fails, instead of continuing silently
     )

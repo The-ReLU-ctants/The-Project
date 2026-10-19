@@ -12,6 +12,8 @@ TRAIN_CSV = "data/processed/train.csv"
 OUT = "data/processed/label_map.json"
 
 if __name__ == "__main__":
+    # sorted() makes the mapping deterministic; unsorted .unique() order can
+    # change between runs and would silently desync old checkpoints.
     species = sorted(pd.read_csv(TRAIN_CSV)["species"].unique())
     label_map = {name: idx for idx, name in enumerate(species)}
     with open(OUT, "w") as f:

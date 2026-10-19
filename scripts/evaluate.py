@@ -60,6 +60,8 @@ def get_device() -> torch.device:
 
 def load_model(checkpoint_path: str, device: torch.device):
     """Rebuild the model from the config stored in the checkpoint and load its weights."""
+    # weights_only=True restricts unpickling to tensors/plain data, not arbitrary
+    # code, safer when loading a checkpoint that could come from anywhere.
     ckpt = torch.load(checkpoint_path, map_location=device, weights_only=True)
     model = build_model(**ckpt["config"]).to(device)
     model.load_state_dict(ckpt["model_state"])
@@ -67,13 +69,13 @@ def load_model(checkpoint_path: str, device: torch.device):
     return model, ckpt
 
 
-@torch.no_grad()
+@torch.no_grad()  # no backward pass needed here, saves memory/compute
 def predict(model, loader, device):
     """Return (true labels, predicted labels, confidence of the predicted class)."""
     y_true, y_pred, conf = [], [], []
     for images, labels in loader:
         probs = torch.softmax(model(images.to(device)), dim=1).cpu()
-        c, pred = probs.max(dim=1)
+        c, pred = probs.max(dim=1)  # max prob = predicted class, its value = confidence
         y_true.extend(labels.tolist())
         y_pred.extend(pred.tolist())
         conf.extend(c.tolist())

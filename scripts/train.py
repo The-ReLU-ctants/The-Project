@@ -26,8 +26,8 @@ import torch.nn as nn
 from torch.utils.data import DataLoader
 
 ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT))
-os.chdir(ROOT)
+sys.path.insert(0, str(ROOT))  # so `from src...` works regardless of cwd
+os.chdir(ROOT)  # manifest CSV paths are relative to the project root
 
 from src.dataset import WildlifeDataset, load_label_map  # noqa: E402
 from src.model import build_model, count_parameters  # noqa: E402
@@ -55,6 +55,8 @@ def parse_args():
 
 
 def set_seed(seed: int):
+    # Doesn't make weight init non-random, makes the *sequence* of randomness
+    # (weight init, shuffling) reproducible across runs with the same seed.
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
@@ -84,8 +86,14 @@ def run_epoch(model, loader, criterion, device, optimizer=None, scheduler=None, 
                 loss = criterion(logits, labels)
 
             if training:
+                # Gradients accumulate by default, so they must be cleared
+                # before each new batch or last batch's gradients leak in.
                 optimizer.zero_grad(set_to_none=True)
                 if scaler is not None:
+                    # Mixed precision (CUDA only): scale the loss up before
+                    # backward() so small float16 gradients don't underflow
+                    # to zero, then unscale before clipping/stepping so both
+                    # see true gradient magnitudes.
                     scaler.scale(loss).backward()
                     scaler.unscale_(optimizer)
                     nn.utils.clip_grad_norm_(model.parameters(), 1.0)
@@ -93,12 +101,14 @@ def run_epoch(model, loader, criterion, device, optimizer=None, scheduler=None, 
                     scaler.update()
                 else:
                     loss.backward()
+                    # Clip to guard against the large, destabilising updates
+                    # a from-scratch (no pretrained prior) model is prone to.
                     nn.utils.clip_grad_norm_(model.parameters(), 1.0)
                     optimizer.step()
-                scheduler.step()
+                scheduler.step()  # per-batch, not per-epoch, for a smooth warmup/decay curve
 
             bs = labels.size(0)
-            total_loss += loss.item() * bs
+            total_loss += loss.item() * bs  # un-average back to a sum so the final mean is exact, not an average-of-averages
             correct += (logits.argmax(1) == labels).sum().item()
             n += bs
 
@@ -140,6 +150,8 @@ def main():
 
     weight = None
     if args.class_weights:
+        # Inverse-frequency weighting: rarer species get a higher loss weight
+        # so the model isn't incentivised to just favour common classes.
         w = counts.sum() / (num_classes * counts.clip(lower=1))
         weight = torch.tensor(w.values, dtype=torch.float32, device=device)
         print(f"Class weights: {np.round(w.values, 3).tolist()}")
@@ -153,8 +165,13 @@ def main():
     warmup_steps = args.warmup_epochs * steps_per_epoch
 
     def lr_lambda(step):
+        # Returns a multiplier on the base LR, not an absolute value.
         if step < warmup_steps:
+            # Ramp 0 -> 1 linearly so the model doesn't take big steps while
+            # its random weights are still essentially noise.
             return (step + 1) / max(1, warmup_steps)
+        # Then cosine-decay 1 -> 0 so training settles into a minimum
+        # smoothly instead of stopping abruptly.
         progress = (step - warmup_steps) / max(1, total_steps - warmup_steps)
         return 0.5 * (1 + math.cos(math.pi * progress))
 
@@ -174,6 +191,9 @@ def main():
         history.append(dict(epoch=epoch, train_loss=tr_loss, train_acc=tr_acc,
                             val_loss=va_loss, val_acc=va_acc, lr=optimizer.param_groups[0]["lr"]))
 
+        # Only overwrite the checkpoint on a new best, so the saved file is
+        # always the best epoch seen, not just the most recent one (a model
+        # can start overfitting and get worse on val in later epochs).
         improved = va_acc > best_acc
         if improved:
             best_acc, best_epoch, stale = va_acc, epoch, 0
